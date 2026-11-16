@@ -1,43 +1,43 @@
 # rubric-lab
 
-lightweight evaluation rubric toolkit — schema, scoring, and worked examples.
+Lightweight evaluation rubric toolkit — schema, scoring, and CLI validation.
 
-## about
+## About
 
-rubric-lab is a small self-contained framework for defining eval rubrics as structured schemas, scoring model outputs, and collecting worked examples.
+`rubric-lab` is a small self-contained Python framework for defining evaluation rubrics as structured schemas, validating criteria, and scoring model outputs with normalized weights and edge-case handling.
 
-## current status
+## Components
 
-early development, hand-written examples from public model behavior only.
+- **`rubric_lab/schema.py`**: Typed dataclasses (`Criterion`, `ScoringResult`, `RubricResult`) and validation routines (`validate_criterion`).
+- **`rubric_lab/scoring.py`**: Scoring engine providing `score_criterion` and `score_rubric` with boundary clamping, weighted normalization, missing-value handling, and failure tags.
+- **`rubric_lab/validate.py`**: CLI entry point to load, validate, and score criteria from JSON files.
+- **`tests/test_scoring.py`**: Unit tests covering boundary weights, malformed inputs, missing fields, clamping, and deterministic scoring.
 
-## directory structure
+## Honest Limitations
 
-rubric-lab/
-├── README.md
-├── ROADMAP.md
-├── rubric_lab/
-│   ├── __init__.py
-│   ├── schema.py
-│   ├── scoring.py
-│   └── validate.py
-├── examples/
-│   ├── factuality.json
-│   └── tone.json
-└── tests/
-    └── test_scoring.py
+- **No CI**: No continuous integration workflow is currently configured on GitHub Actions.
+- **No Pip Package**: Not published to PyPI; must be used directly from source.
+- **Manual Testing**: Tests are not automatically executed on push or PRs.
 
-## quick start
+## Quick Start
 
 ```python
-from rubric_lab.schema import Rubric
-from rubric_lab.scoring import score_output
+from rubric_lab.schema import Criterion
+from rubric_lab.scoring import score_rubric
 
-rubric = Rubric.from_file("examples/factuality.json")
-scores = {"correctness": 4, "specificity": 5, "source_grounding": 3}
-result = score_output(rubric, scores)
-print(result["total_score"], result["percentage"])
+c1 = Criterion(name="accuracy", weight=0.6, max_points=10.0)
+c2 = Criterion(name="clarity", weight=0.4, max_points=10.0)
+
+res = score_rubric([c1, c2], {"accuracy": 9.0, "clarity": 8.0})
+print(f"Total: {res.total_score}, Normalized: {res.normalized_score}")
 ```
 
-## license
+## CLI Usage
 
-mit license.
+```bash
+python -m rubric_lab.validate path/to/rubric.json
+```
+
+## License
+
+MIT License.
