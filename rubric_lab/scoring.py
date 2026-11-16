@@ -1,100 +1,88 @@
-"""scoring engine for evaluating model outputs against rubrics."""
-
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, Optional
-
-from rubric_lab.schema import Rubric
+from typing import Any, Dict, List, Sequence
+from rubric_lab.schema import Criterion, RubricResult, ScoringResult
 
 
-@dataclass
-class DimensionScore:
-    """breakdown for a single evaluated dimension."""
-    raw_score: float
-    clamped_score: float
-    weight: float
-    weighted_score: float
+def score_criterion(criterion: Criterion, raw_score: float, max_score: float) -> ScoringResult:
+    if raw_score < 0:
+        raise ValueError(f"Criterion '{getattr(criterion, 'name', '')}': raw_score cannot be negative, got {raw_score}")
+    if max_score < 0:
+        raise ValueError(f"Criterion '{getattr(criterion, 'name', '')}': max_score cannot be negative, got {max_score}")
 
+    crit_name = getattr(criterion, "name", str(criterion))
+    weight = getattr(criterion, "weight", 1.0)
+    failure_tags = list(getattr(criterion, "failure_tags", []))
 
-@dataclass
-class ScoreResult:
-    """aggregated scoring result containing total and per-dimension breakdown."""
-    total_score: float
-    weighted_total: float
-    total_weight: float
-    normalized_score: float
-    breakdown: Dict[str, DimensionScore] = field(default_factory=dict)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """convert score result to dictionary representation."""
-        return {
-            "total_score": self.total_score,
-            "weighted_total": self.weighted_total,
-            "total_weight": self.total_weight,
-            "normalized_score": self.normalized_score,
-            "breakdown": {
-                name: {
-                    "raw_score": d.raw_score,
-                    "clamped_score": d.clamped_score,
-                    "weight": d.weight,
-                    "weighted_score": d.weighted_score,
-                }
-                for name, d in self.breakdown.items()
-            },
-        }
-
-
-def score_output(
-    rubric: Rubric,
-    scores: Dict[str, float],
-    clamp: bool = True,
-    strict: bool = True,
-) -> ScoreResult:
-    """score a model output based on per-dimension evaluations.
-
-    Args:
-        rubric: the Rubric definition.
-        scores: dictionary mapping dimension name to numeric score.
-        clamp: whether to clamp scores within [min_score, max_score].
-        strict: if True, raises ValueError when a rubric dimension is missing.
-
-    Returns:
-        ScoreResult containing totals and per-dimension breakdown.
-    """
-    breakdown: Dict[str, DimensionScore] = {}
-    weighted_total = 0.0
-    total_weight = 0.0
-
-    for dim in rubric.dimensions:
-        if dim.name not in scores:
-            if strict:
-                raise ValueError(f"missing score for dimension: '{dim.name}'")
-            continue
-
-        raw = float(scores[dim.name])
-        if clamp:
-            clamped = max(dim.min_score, min(dim.max_score, raw))
-        else:
-            clamped = raw
-
-        weighted = clamped * dim.weight
-        weighted_total += weighted
-        total_weight += dim.weight
-
-        breakdown[dim.name] = DimensionScore(
-            raw_score=raw,
-            clamped_score=clamped,
-            weight=dim.weight,
-            weighted_score=weighted,
+    if max_score == 0:
+        summary = f"Criterion '{crit_name}': division-by-zero avoided (max_score is 0), score set to 0.0"
+        return ScoringResult(
+            criterion_name=crit_name,
+            score=0.0,
+            max_score=0.0,
+            weighted_score=0.0,
+            summary=summary,
+            failure_tags=failure_tags,
         )
 
-    normalized = (weighted_total / total_weight) if total_weight > 0 else 0.0
+    clamped_score = min(raw_score, max_score)
+    weighted_score = (clamped_score / max_score) * weight
+    summary = (
+        f"Criterion '{crit_name}': raw_score={raw_score}, max_score={max_score}, "
+        f"clamped={clamped_score}, weighted_score={weighted_score:.4f}"
+    )
 
-    return ScoreResult(
-        total_score=normalized,
-        weighted_total=weighted_total,
-        total_weight=total_weight,
-        normalized_score=normalized,
-        breakdown=breakdown,
+    return ScoringResult(
+        criterion_name=crit_name,
+        score=clamped_score,
+        max_score=max_score,
+        weighted_score=weighted_score,
+        summary=summary,
+        failure_tags=failure_tags,
+    )
+
+
+def score_rubric(
+    criteria: Sequence[Criterion],
+    scores_dict: Dict[str, Any],
+) -> RubricResult:
+    criteria_results: List[ScoringResult] = []
+    missing_fields: List[str] = []
+
+    for criterion in criteria:
+        name = getattr(criterion, "name", None)
+        if name is None and isinstance(criterion, dict):
+            name = criterion.get("name")
+
+        if name not in scores_dict or scores_dict[name] is None:
+            missing_fields.append(name if name is not None else "")
+            continue
+
+        entry = scores_dict[name]
+        if isinstance(entry, (tuple, list)):
+            raw = float(entry[0])
+            max_s = float(entry[1]) if len(entry) > 1 else 1.0
+        elif isinstance(entry, dict):
+            raw = float(entry.get("raw_score", entry.get("score", 0.0)))
+            max_s = float(entry.get("max_score", 1.0))
+        else:
+            raw = float(entry)
+            max_s = 1.0
+
+        res = score_criterion(criterion, raw, max_s)
+        criteria_results.append(res)
+
+    total_score = sum(r.weighted_score for r in criteria_results)
+    max_possible = sum(
+        getattr(c, "weight", c.get("weight", 1.0) if isinstance(c, dict) else 1.0)
+        for c in criteria
+    )
+    normalized_score = (total_score / max_possible) if max_possible > 0 else 0.0
+
+    return RubricResult(
+        criteria_results=criteria_results,
+        total_score=total_score,
+        max_possible=max_possible,
+        normalized_score=normalized_score,
+        missing_fields=missing_fields,
     )
