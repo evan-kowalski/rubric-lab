@@ -1,6 +1,6 @@
 # rubric-lab
 
-Lightweight evaluation rubric toolkit — schema, scoring, and CLI validation.
+Lightweight evaluation rubric toolkit - schema, scoring, and CLI validation.
 
 ## About
 
