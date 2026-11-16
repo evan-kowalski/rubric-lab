@@ -1,0 +1,32 @@
+[
+  {
+    "id": "eval-001",
+    "prompt": "Summarize the law of gravity.",
+    "response": "Gravity is the attractive force between masses.",
+    "score": 4.5,
+    "scores": {
+      "clarity": 5.0,
+      "accuracy": 4.0
+    },
+    "criteria": "clarity and accuracy",
+    "tags": [
+      "physics",
+      "science"
+    ]
+  },
+  {
+    "id": "eval-002",
+    "prompt": "What is 15 multiplied by 4?",
+    "response": "15 multiplied by 4 is 60.",
+    "score": 5.0,
+    "scores": {
+      "clarity": 5.0,
+      "accuracy": 5.0
+    },
+    "criteria": "factual correctness",
+    "tags": [
+      "math",
+      "arithmetic"
+    ]
+  }
+]

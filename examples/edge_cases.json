@@ -1,0 +1,32 @@
+[
+  {
+    "id": "edge-001",
+    "prompt": "",
+    "response": "Prompt is empty.",
+    "score": 1.0,
+    "scores": {
+      "clarity": 1.0
+    }
+  },
+  {
+    "id": "edge-002",
+    "prompt": "Evaluate maximum boundary score.",
+    "response": "Perfect response that satisfies every condition.",
+    "score": 5.0,
+    "scores": {
+      "clarity": 5.0,
+      "accuracy": 5.0
+    },
+    "criteria": "maximum score boundary"
+  },
+  {
+    "id": "edge-003",
+    "prompt": "Special symbols test: <xml> & \"quotes\" ?!",
+    "response": "Handled special character escaping properly.",
+    "score": 3.0,
+    "tags": [
+      "boundary",
+      "special-chars"
+    ]
+  }
+]
